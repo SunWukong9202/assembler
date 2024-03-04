@@ -1,0 +1,27 @@
+{
+    "name": "azahe/assembler",
+    "autoload": {
+        "psr-4": {
+            "Assembler\\": "src/"
+        }
+    },
+    "authors": [
+        {
+            "name": "santiago",
+            "email": "azahel_santiago@hotmail.com"
+        }
+    ],
+    
+    "require": {
+        "antlr/antlr4-php-runtime": "^0.9.1"
+    },
+
+    "scripts": {
+        "gui": "antlr4-parse assembler3.g4 prog -gui input.xe",
+        "generate": "antlr4 -Dlanguage=PHP assembler3.g4 -o src -package Assembler -no-listener -visitor",
+        "clean": "rm -rf src/assembler*",
+        "clean_vendor": "rm vendor",
+        "run_": "php assembler.php input.xe"
+    }
+}
+
