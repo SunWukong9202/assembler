@@ -30,7 +30,7 @@ class AssemblerErrorListener extends BaseErrorListener {
         // var_dump($map);
         // var_dump($names);
         // var_dump($rules);
-        echo "@Error en linea $line:$charPositionInLine - $msg\n";   
+        echo "@Error en linea $line:$charPositionInLine: $msg\n";   
     }
 
 }
@@ -73,7 +73,6 @@ class Assembler {
         } catch(Exception $e) {
             echo "Excepcion: {$e->getMessage()}\n";
         }
-        $visitor->generateTabSim();
         return $visitor->lines;
     }
 }

@@ -7,7 +7,7 @@ LOOP    ADD     TABLE1, X
         ADD     TABLE2, X
         TIX     COUNT
         JLT     LOOP
-        RMOS    A, X
+        RMO     A, X
         SHIFTR  A, 2
         +STA    TOTAL
         CLEAR   A

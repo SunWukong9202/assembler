@@ -5,12 +5,18 @@ namespace Assembler;
 use Antlr\Antlr4\Runtime\Error\Exceptions\RecognitionException;
 use Assembler\Context\BaseContext;
 use Assembler\Context\BeginProgContext;
+use Assembler\Context\BothMissingContext;
 use Assembler\Context\ByteContext;
+use Assembler\Context\ByteErrorContext;
+use Assembler\Context\CommaMissingContext;
 use Assembler\Context\Directive_Context;
 use Assembler\Context\DirectiveOptContext;
 use Assembler\Context\EndProgContext;
 use Assembler\Context\Instruction_Context;
 use Assembler\Context\InstructionOptContext;
+use Assembler\Context\LinesContext;
+use Assembler\Context\Op1MissingContext;
+use Assembler\Context\Op2MissingContext;
 use Assembler\Context\ResbContext;
 use Assembler\Context\ReswContext;
 use Assembler\Context\WordContext;
@@ -26,6 +32,7 @@ class Visitor extends assembler3BaseVisitor
     protected $errores = [];
     protected $line = "";
     protected $tag = "";
+    protected $temp = [];
 
     public function __construct()
     {
@@ -33,58 +40,32 @@ class Visitor extends assembler3BaseVisitor
         // var_dump($this->instructions);
         $this->tabSim = [];
         $this->errores = [];
-        $this->clearErrorFile();
+        $this->clearFile('errores.err');
+        $this->clearFile('intermedio.txt');
+        $this->clearFile('tabSim.txt');
     }
 
-    public function generateTabSim(): void
+    public function clearFile(string $file): void
     {
-        $file = fopen("tabSim.txt", 'w');
-        if ($file) {
-            foreach ($this->tabSim as $label => $pc) {
-                fwrite($file,  $pc.' | '. $label . "\n");
-            }
-            fclose($file);
-            echo "Archivo tabSim.txt generado correctamente.\n";
-        } else {
-            echo "Ocurrió un error al intentar abrir el archivo tabSim.txt para escritura.\n";
-        }
-    }
-    
-
-    public function clearErrorFile(): void
-    {
-        $file = fopen('errores.err', 'w');  // 'w' abre el archivo para escritura (write), sobrescribe el contenido existente
+        $file = fopen($file, 'w');  // 'w' abre el archivo para escritura (write), sobrescribe el contenido existente
 
         if ($file) {
             fwrite($file, "");  // Escribe una cadena vacía para limpiar el archivo
             fclose($file);
-            echo "Archivo de errores limpiado.\n";
+            echo "Archivo limpiado.\n";
         } else {
-            echo "Ocurrió un error al intentar limpiar el archivo de errores.\n";
+            echo "Ocurrió un error al intentar limpiar el archivo\n";
         }
     }
 
-    public function putErrorLine($line): void
+    public function putLineOn($line, $file = 'errores.err'): void
     {
-        $file = fopen('errores.err', 'a');
+        $file = fopen($file, 'a');
 
         if($file) {
             fwrite($file, $line);
             fclose($file);
             echo "Guardado\n";
-        }
-        else {
-            echo "Ocurrio un error\n";
-        }
-    }
-
-    public function putGeneratedLine($line): void
-    {
-        $file = fopen('intermedio.txt', 'a');
-
-        if($file) {
-            fwrite($file, $line);
-            fclose($file);
         }
         else {
             echo "Ocurrio un error\n";
@@ -99,14 +80,14 @@ class Visitor extends assembler3BaseVisitor
     }
     
 
-    protected function getFormat(string $codop): bool|string
+    protected function getFormat($codop): bool|string
     {
         return match(true) {
-            isset($this->instructions['formato1'][$codop]) => 'f1',
-            isset($this->instructions['formato2'][$codop]) => 'f2', 
-            isset($this->instructions['formato3'][$codop]) => 'f3',
+            !isset($codop) => false,
+            isset($this->instructions['formato1'][$codop->getText()]) => 'f1',
+            isset($this->instructions['formato2'][$codop->getText()]) => 'f2', 
+            isset($this->instructions['formato3'][$codop->getText()]) => 'f3',
             default => false,
-    
         };
     }
     public function visitBeginProg(BeginProgContext $ctx)
@@ -116,12 +97,14 @@ class Visitor extends assembler3BaseVisitor
         $label = $ctx->ID();
         $start = $ctx->START();
         $address = $ctx->NUM();
+        $this->temp['address'] = $this->getIntFrom($address?->getText() ?? 0);
         if($address !== null) $this->pc = intval($address->getText());
-
+        $pc = dechex($this->pc);
+        $this->putLineOn("$pc: {$ctx->getText()}\n", 'intermedio.txt');
         if(!isset($label) || !isset($start) || !isset($address)) {
             $error = "Error-INICIO: Error de sintaxis en linea {$this->lines}\n";
             if($this->printErrors) echo $error;
-            $this->putErrorLine($error);
+            $this->putLineOn($error);
         }
     }
 
@@ -131,10 +114,12 @@ class Visitor extends assembler3BaseVisitor
         if($this->debug) echo "ins-opt: {$this->lines} {$ctx->getText()}\n";
         $label = $ctx->ID(0);
         $this->tag = $label;
+        $pc = dechex($this->pc);
+        $this->putLineOn("$pc: {$ctx->getText()}\n", 'intermedio.txt');
         $this->line = "{$this->lines}\t{$this->pc}";
-        $this->insertInSimTab($label);
-        if($this->debug) echo "$label:";
-        
+        // $this->insertInSimTab($label);
+        if($this->debug) echo "L-$label\n";
+        $this->temp['label'] = $label;
         $this->visitChildren($ctx);
     }
 
@@ -144,10 +129,11 @@ class Visitor extends assembler3BaseVisitor
         if(isset($this->tabSim[$label->getText()])) {
             $error = "@Error en la linea {$this->lines}: Simbolo Duplicado\n";
             if($this->printErrors) echo $error;
-            $this->putErrorLine($error);
+            $this->putLineOn($error);
         }
         else {
             $pc = $this->ajustHexLength(dechex($this->pc), 6);
+            $this->putLineOn("$pc | $label\n", 'tabSim.txt');
             $this->tabSim[$label->getText()] = $pc;
         }
     }
@@ -157,6 +143,8 @@ class Visitor extends assembler3BaseVisitor
         $this->lines++;
         if($this->debug) echo "dir-opt: {$this->lines} {$ctx->getText()}\n";
         $label = $ctx->ID(0);
+        $pc = dechex($this->pc);
+        $this->putLineOn("$pc: {$ctx->getText()}\n", 'intermedio.txt');
         $this->tag = $label;
         $this->line = "{$this->lines}\t{$this->pc}";
         $this->insertInSimTab($label);
@@ -167,67 +155,94 @@ class Visitor extends assembler3BaseVisitor
     {
         // echo "text: {$ctx->getText()}\n";
         $this->lines++;
+        $programSize = dechex($this->pc - $this->temp['address']);
+        $this->putLineOn("Program Size: $programSize\n", 'tabSim.txt');
+        $pc = dechex($this->pc);
+        $this->putLineOn("$pc: {$ctx->getText()}\n", 'intermedio.txt');
     }
 
     public function visitInstruction_(Instruction_Context $ctx)
     {
-        try{
-            $plus = $ctx->PLUS();
-            $codop = $ctx->ID(0);
-            $addressMode = $ctx->AT()?->getText() ?? $ctx->HASH()?->getText();
-            $op1 = $ctx->ID(1) ?? $ctx->NUM(0);
-            $comma = $ctx->COMMA();
-            $op2 = $ctx->ID(2) ?? $ctx->NUM(1);
-            if($this->debug) echo "$plus$codop - $addressMode op1 $op1 -$comma - op2=$op2\n";
-            $format = $this->getFormat($codop->getText());
-            if(!$format) {
-                $err = "@Error en la linea $this->lines: Codigo de operacion no encontrado\n";
-                if($this->printErrors) echo $err;
-                $this->line .= "\t---\t$this->tag\t$plus$codop\t$addressMode$op1$comma$op2";
-                $this->line .= "\t$err";
-                $this->putGeneratedLine($this->line);
-                $this->putErrorLine($err);
+        $codop = $ctx->ID(0);
+        $plus = $ctx->PLUS();
+        $mode = $ctx->AT()?->getText() ?? $ctx->HASH()?->getText();
+        $op1 = $ctx->ID(1) ?? $ctx->NUM(0);
+        $comma = $ctx->COMMA();
+        $op2 = $ctx->ID(2) ?? $ctx->NUM(1);
+        $label = $this->temp['label'];
+        $format = $this->getFormat($label);
+
+        if($format) {
+            $op = $codop;
+            //CHECAR POR OP1 VALIDO
+            if($this->debug) echo "1-OP {$this->lines}: $label $op\n";
+            $format = $plus !== null ? 'f4' : $format;
+            $this->pc += intval(substr($format, 1));
+            if(isset($op1)) {
+                //dos operadores sin coma
+                if($this->debug) echo "@Error de sintaxis {$this->lines}: Operadores mal formateados\n";
+            }
+            // if($this->debug) echo "NO-L:$label $addrMode-op1=$op1-c=$comma-op2=$op2\n";
+        }
+        else if($this->getFormat($op1)) {
+            if($this->debug) echo "@Error de sintaxis {$this->lines}: Operadores mal formateados\n";
+        }
+        else if(!$this->getFormat($codop)) 
+        {
+            if($this->debug) echo "@Error {$this->lines}: Instruccion no existe\n";
+            // if($this->debug) echo "@Error {$this->lines}: $plus$codop $addrMode$op1$comma$op2\n";
+        }
+        else {
+            // Seccion en teoria libre de errores de operadores
+            $format = $this->getFormat($codop);
+            $m = $ctx->ID(1);
+            $c = $ctx->NUM(0);
+            $x = $ctx->ID(2);
+            $isNotValid = isset($op1) || isset($mode) || isset($op2) || isset($plus);
+            $error = false;
+            if($format == 'f1' && $isNotValid) {
+                $error = "@Error en linea {$this->lines}: formato 1 invalido\n";
+                if($this->debug) echo $error;
+            }
+            $isNotValid = isset($mode) || isset($plus);
+            if($format == 'f2' && $isNotValid) {
+                $error = "@Error en linea {$this->lines}: formato 2 invalido\n";
+                if($this->debug) echo $error;
+            }
+
+            $isNotValid = (isset($op2) && $op2->getText() !== 'X') || (isset($mode) && isset($op2))
+            || (isset($op1) && $codop->getText() == 'RSUB');
+            if($format == 'f3' && $isNotValid) {
+                $f = $plus !== null ? 4 : 3;
+                $error = "@Error en linea {$this->lines}: formato $f invalido\n";
+                if($this->debug) echo $error;
+            }
+            if($this->debug) echo "{$this->lines}: $plus$codop $mode-$op1-$comma-$op2\n";
+            if($error) {
                 return;
             }
 
-            if($plus !== null) {
-                $this->pc += 4;
-                return;
-            }bin2hex()
-            
-            $this->pc += match($format) {
-                'f2' => 2,
-                'f3' => 3,
-                'f4' => 4,
-                default => 0
-            };
-            $this->line .= "\t$f\t---\t$this->tag\t$plus$codop\t$addressMode$op1$comma$op2";
-
-
-        }catch(RecognitionException $e) {
-            $line = $e->getOffendingToken()->getLine();
-            $charPos = $e->getOffendingToken()->getCharPositionInLine();
-            $error = $e->getMessage();
-            echo "Error en linea $line: $charPos - $error\n";
+            $this->insertInSimTab($label);
+            $format = $plus !== null ? 'f4' : $format;
+            $format = substr($format, 1);
+            $this->pc += intval($format);
         }
-        
-        $this->visitChildren($ctx);
-    
+
+        $this->visitChildren($ctx);    
     }
 
-    protected function pickFormat($format, $addressMode): void
-    {
-        $f = substr($format,1);
-        if($format == 'f3') {
-            $mode = match($addressMode) {
-                '@' => 'indirecto',
-                '#' => 'inmediato',
-                default => 'simple'
-            };
-            $this->line .= "\t$mode";
-        };
-        $this->putGeneratedLine($this->line);
-    }
+    // protected function pickFormat($format, $addressMode): void
+    // {
+    //     if($format == 'f3') {
+    //         $mode = match($addressMode) {
+    //             '@' => 'indirecto',
+    //             '#' => 'inmediato',
+    //             default => 'simple'
+    //         };
+    //         $this->line .= "\t$mode";
+    //     };
+    //     $this->putGeneratedLine($this->line);
+    // }
 
     public function visitByte(ByteContext $ctx)
     {
@@ -237,17 +252,24 @@ class Visitor extends assembler3BaseVisitor
 
         $const = $ctx->CONS()?->getText();
         $consx = $ctx->CONSX()?->getText();
-        $this->pc += match(true) {
+        // $this->pc +
+        $c = match(true) {
              $const !== null 
-             => strlen($const),
+             => $this->getConstLen($const),
              $consx !== null
-             => strlen($consx) % 2 !== 0 
-             ? (strlen($consx) + 1) * 4
-             : strlen($consx) * 4,
+             =>($this->getConstLen($consx) % 2 !== 0 
+                ? ($this->getConstLen($consx) + 1) //completar byte
+                : $this->getConstLen($consx) ) / 2,
              default => 0
         };
+        echo "BYTE: $c\n";
+        $this->pc += $c;
+    }
 
-
+    protected function getConstLen($const): string
+    {
+        // Avoid 2 first char (X|C)' and last '
+        return strlen(substr($const, 2, strlen($const) - 1 - 2));
     }
 
     public function visitWord(WordContext $ctx)
@@ -290,7 +312,7 @@ class Visitor extends assembler3BaseVisitor
     protected function getIntFrom(string $num): int
     {        
         $aux = $this->canGetHex($num) 
-        ? hexdec(str_replace($num, '', 'H')) 
+        ? hexdec($num) 
         : $num;
         echo "$num - to dec -> $aux\n";
         return intval($aux);
@@ -300,14 +322,33 @@ class Visitor extends assembler3BaseVisitor
     {
         return strpos($num, 'H') !== false;
     }
-    // public function visitDirective_(Directive_Context $ctx)
-    // {
-    //     echo "dir-type: $ctx->"
-    //     // $this->pc += match(true) {
-    //     //     isset($ctx->type->BYTE()) => 3,
-    //     //     default => 0
-    //     // };
-    // }
+
+
+    public function visitOp1Missing(Op1MissingContext $context)
+    {
+        $this->lines++;   
+    }
+
+    public function visitBothMissing(BothMissingContext $context)
+    {
+        $this->lines++;   
+    }
+    
+    public function visitOp2Missing(Op2MissingContext $context)
+    {
+        $this->lines++;   
+    }
+
+    public function visitCommaMissing(CommaMissingContext $context)
+    {
+        $this->lines++;   
+    }
+
+    public function visitByteError(ByteErrorContext $context)
+    {
+        $this->lines++;
+        echo "Error in BYTE {$this->lines}: \n";    
+    }
 }
 
 
