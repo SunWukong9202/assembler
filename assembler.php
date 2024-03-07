@@ -20,6 +20,8 @@ use Antlr\Antlr4\Runtime\Tree\TerminalNode;
 use Assembler\assembler3Lexer as assemblerLexer;
 use Assembler\assembler3Parser as assemblerParser;
 use Assembler\Visitor;
+use Assembler\Mode;
+require_once(__DIR__."/src/errores.php");
 
 class AssemblerErrorListener extends BaseErrorListener {
     public function syntaxError(Recognizer $recognizer, ?object $offendingSymbol, int $line, int $charPositionInLine, string $msg, ?RecognitionException $exception): void
@@ -73,7 +75,35 @@ class Assembler {
         } catch(Exception $e) {
             echo "Excepcion: {$e->getMessage()}\n";
         }
+        print_r($visitor->getIntermediate());
+        $this->imprimirTabla($visitor->getIntermediate());
+        print_r($visitor->tabSim);
         return $visitor->lines;
+    }
+
+
+    function imprimirTabla($datos)
+    {
+        // Encabezado
+        $out = "---------------------------------------------------------------------------------------------\n";
+        $out.= "|   NUM      |   FORMATO  |     PC     |     ETQ     |     INS    |    OPER    |     MODO   |\n";
+        $out.= "---------------------------------------------------------------------------------------------\n";
+
+        // Datos
+        foreach ($datos as $fila) {
+            $mode = '---';
+            if($fila['mode'] instanceof Mode) {
+                $mode = $fila['mode']->toString();
+            }
+            $out.=sprintf("| %-10s | %-10s | %-10s | %-10s  | %-10s | %-10s | %-10s |\n",
+            $fila['line'], $fila['format'], $fila['pc'], $fila['label'], $fila['codop'], $fila['temp']['op_col'] ?? '', $mode );
+
+        }
+
+        // Línea de cierre
+        $out.= "---------------------------------------------------------------------------------------------\n";
+            // Guardar en un archivo
+        file_put_contents('tabla.txt', $out);
     }
 }
 
