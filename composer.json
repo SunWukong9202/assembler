@@ -2,8 +2,7 @@
     "name": "azahe/assembler",
     "autoload": {
         "psr-4": {
-            "Assembler\\": "src/",
-            "App\\": "web"
+            "Assembler\\": "src/"
         }
     },
     "authors": [
