@@ -1,5 +1,7 @@
-000f | LOOP
-0019 | COUNT
-002d | TABLE
-004b | TABLE2
-Program Size: 52
+0030 | NUM
+0073 | VALOR
+0077 | INICIO
+00a7 | TEMP
+00ad | CAD
+00b3 | TABLA
+Program Size: 0030cf

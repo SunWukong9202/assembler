@@ -21,7 +21,7 @@ oneOpCode: ID;
 
 instruction
     // : PLUS? (ID (AT|HASH)? (ID|NUM) (COMMA (ID|NUM))? | ID (ID|NUM)) #instruction_
-    : PLUS? ID ((AT|HASH)? (ID|NUM) (COMMA (ID|NUM))?)? #instruction_
+    : PLUS? ID ((AT|HASH)? op1=(ID|NUM) (COMMA op2=(ID|NUM))?)? #instruction_
     // | PLUS? OPCODE (AT|HASH)? (ID|NUM) #instruction2_
     ;
 
@@ -52,10 +52,10 @@ BYTE: 'BYTE'; WORD: 'WORD'; RESB: 'RESB'; RESW: 'RESW';
 PLUS: '+'; HASH: '#'; AT: '@'; COMMA: ',';
 BASE: 'BASE';
 CONS: 'C\''[a-zA-Z0-9]+'\'';
+CONSX: 'X\''[0-9A-F]+'\'';
 ERRCONS: [A-BD-Za-z]'\''[a-zA-Z0-9]+'\'' 
 | [A-Za-z]('\''[a-zA-Z0-9]+|[a-zA-Z0-9]+'\'');
-ERRCONSX: [A-WY-Za-z]'\''[0-9A-F]+'\'' | [A-Za-z]('\''[0-9A-F]+|[0-9A-F]+'\'');
-CONSX: 'X\''[0-9A-F]+'\'';
+ERRCONSX: [A-WY-Za-z]'\''[0-9A-Za-z]+'\'' | [A-Za-z]('\''[0-9A-Za-z]+|[0-9A-Za-z]+'\'');
 ID: ([A-Z]+[0-9]*);
 OPCODE: [A-Z]+;
 NUM: [0-9]+('H')?;

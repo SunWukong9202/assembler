@@ -13,5 +13,6 @@ COUNT   RESB    12H
         SHIFTL  X, 2
 TABLE   RESW    10
 TABLE2  BYTE    C'TEST' 
+TABLE3  BYTE    X'4AF' 
         WORD    16
         END

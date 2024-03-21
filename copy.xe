@@ -18,3 +18,4 @@ BYTE    BYTE    C'11'
 EOF     BYTE    C'EOF'
 THREE   WORD    000003
 ZERO    WORD    000000
+        END     

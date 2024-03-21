@@ -21,7 +21,7 @@ use Assembler\assembler3Lexer as assemblerLexer;
 use Assembler\assembler3Parser as assemblerParser;
 use Assembler\Visitor;
 use Assembler\Mode;
-require_once(__DIR__."/src/errores.php");
+use Assembler\STEP2;
 
 class AssemblerErrorListener extends BaseErrorListener {
     public function syntaxError(Recognizer $recognizer, ?object $offendingSymbol, int $line, int $charPositionInLine, string $msg, ?RecognitionException $exception): void
@@ -29,15 +29,17 @@ class AssemblerErrorListener extends BaseErrorListener {
         $map = $recognizer->getTokenTypeMap();
         $rules = $recognizer->getRuleIndexMap();
         $names = $recognizer->getRuleNames();
-        // var_dump($map);
-        // var_dump($names);
-        // var_dump($rules);
         echo "@Error en linea $line:$charPositionInLine: $msg\n";   
     }
 
 }
 
 class Assembler {
+
+    public function runWithTrustedPath($path): void
+    {
+        $this->evaluate($path);
+    }
     public function run($argv): void
     {
         if(!isset($argv[1])) {
@@ -75,16 +77,29 @@ class Assembler {
         } catch(Exception $e) {
             echo "Excepcion: {$e->getMessage()}\n";
         }
-        print_r($visitor->getIntermediate());
+        // $printable = array_slice($visitor->getIntermediate(), 0, 20);
+        $printables = [ '1', '2','30', '33', '37'];
+        print_r($this->printOnly($visitor->getIntermediate()));
         $this->imprimirTabla($visitor->getIntermediate());
+        $step2 = new STEP2($visitor->tabSim, $visitor->getIntermediate());
+        $step2->assembly();
+        $this->imprimirTablaObjcode($step2->intermediate);
         print_r($visitor->tabSim);
         return $visitor->lines;
     }
 
+    public function printOnly($source, $choosen = null): array
+    {
+        if($choosen == null) return $source;
+        $resp = [];
+        foreach($source as $target) {
+            if(in_array($target['line'], $choosen)) $resp[] = $target;
+        }
+        return $resp;
+    }
 
     function imprimirTabla($datos)
     {
-        // Encabezado
         $out = "---------------------------------------------------------------------------------------------\n";
         $out.= "|   NUM      |   FORMATO  |     PC     |     ETQ     |     INS    |    OPER    |     MODO   |\n";
         $out.= "---------------------------------------------------------------------------------------------\n";
@@ -102,8 +117,30 @@ class Assembler {
 
         // Línea de cierre
         $out.= "---------------------------------------------------------------------------------------------\n";
-            // Guardar en un archivo
+            // Guarda en un archivo
         file_put_contents('tabla.txt', $out);
+    }
+
+    function imprimirTablaObjcode($datos)
+    {
+        $out = "------------------------------------------------------------------------------------------------------------\n";
+        $out.= "|   NUM      |   FORMATO  |     PC     |     ETQ     |     INS    |    OPER    |     MODO   |    Objcode    |\n";
+        $out.= "------------------------------------------------------------------------------------------------------------\n";
+        // Datos
+        foreach ($datos as $fila) {
+            $mode = '---';
+            if($fila['mode'] instanceof Mode) {
+                $mode = $fila['mode']->toString();
+            }
+            $out.=sprintf("| %-10s | %-10s | %-10s | %-10s  | %-10s | %-10s | %-10s | %-12s |\n",
+            $fila['line'], $fila['format'], $fila['pc'], $fila['label'], $fila['codop'], $fila['temp']['op_col'] ?? '', $mode, $fila['objCode']);
+
+        }
+
+        // Línea de cierre
+        $out.= "------------------------------------------------------------------------------------------------------------\n";
+            // Guarda en un archivo
+        file_put_contents('tablaobjCode.txt', $out);
     }
 }
 

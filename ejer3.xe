@@ -13,7 +13,7 @@ INICIO  CLEAR   X
         +STA    #VALORES
         MULR    X, A 
 TEMP    RESW    2
-CAD     BYTE    C'EJER3'
+CAD     BYTE    C'EJERC3'
 TABLA   RESW    1004H
         LDCH    NUM 
         +JGT    100H, X 

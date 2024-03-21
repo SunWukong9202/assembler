@@ -9,9 +9,8 @@ enum ASMError : string
     //step 2
     case labelNotFound = "@Simbolo no encontrado en TABSIM";
     case opOutOfRange = "@Operando fuera de rango";
-    case notExistingAddrMode = "@Modo de direccion no existe";
-    case notOpRelative = "@No relativo al PC";
-    case notBaseRelative = "@No relativo a la Base";
+    case notExistingAddrMode = "@No existe combinacion MD";
+    case notOpOrBaseRelative = "@No relativo al PC/B";
     case symbolNotFound = "@Simbolo no encontrado para END";
 };
 
@@ -23,8 +22,14 @@ enum Line : int
     case END = 4;
 }
 
+enum NUM : int
+{
+    case HEX = 0;
+    case INT = 1;
+}
+
 enum Mode: string
-{   //por defecto directos si solo $c existe
+{   //por defecto directos solo si $c existe
     case simple = '030';
     case indirecto = '020';
     case inmediato = '010';
@@ -35,27 +40,23 @@ enum Mode: string
     //podria requerir otro manejo 
     case directo = '001';//solo configura el bit 'e' formato 4
 
-    public function getFlags(...$modifiers): void
+    public function getFlags($modifiers): string
     {
+
         $flag = $this->value;
         foreach($modifiers as $modifier) {
-            $flag = $flag | $modifier;
+            $flag = dechex(hexdec($flag) | hexdec($modifier?->value ?? $modifier));
         };
+        return $flag;
     }
 
-    public static function getMode($string): static
+    public static function getMode($mode): self
     {
-        return match($string) {
-            '#' => static::inmediato,
-            '@' => static::indirecto,
-            default => static::simple
+        return match($mode) {
+            '#' => Mode::inmediato,
+            '@' => Mode::indirecto,
+            default => Mode::simple,
         };
-    }
-
-    function ajustHexLength($hex, $length = 3) {
-        // Agregar ceros a la izquierda hasta alcanzar la longitud deseada
-        $adjustedHex = str_pad($hex, $length, '0', STR_PAD_LEFT);
-        return $adjustedHex;
     }
 
     public function toString()

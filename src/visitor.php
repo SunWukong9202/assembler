@@ -24,8 +24,11 @@ require_once(__DIR__."/errores.php");
 
 class Visitor extends assembler3BaseVisitor
 {   
-    public $lines = 0; private $printErrors = true;
-    private $debug = true;
+    use HexHelpers;
+    use FileHelper;
+
+    public $lines = 0; private $printErrors = false;
+    private $debug = false;
     protected $instructions = [];
     public $tabSim = [];
     protected $pc = 0;
@@ -49,41 +52,6 @@ class Visitor extends assembler3BaseVisitor
     {
         return $this->intermediate;
     }
-
-    public function clearFile(string $file): void
-    {
-        $file = fopen($file, 'w');  // 'w' abre el archivo para escritura (write), sobrescribe el contenido existente
-
-        if ($file) {
-            fwrite($file, "");  // Escribe una cadena vacía para limpiar el archivo
-            fclose($file);
-            echo "Archivo limpiado.\n";
-        } else {
-            echo "Ocurrió un error al intentar limpiar el archivo\n";
-        }
-    }
-
-    public function putLineOn($line, $file = 'errores.err'): void
-    {
-        $file = fopen($file, 'a');
-
-        if($file) {
-            fwrite($file, $line);
-            fclose($file);
-            echo "Guardado\n";
-        }
-        else {
-            echo "Ocurrio un error\n";
-        }
-    }
-
-    function ajustHexLength($hex, $length) {
-        // Agregar ceros a la izquierda hasta alcanzar la longitud deseada
-        $adjustedHex = str_pad($hex, $length, '0', STR_PAD_LEFT);
-    
-        return $adjustedHex;
-    }
-    
 
     protected function getFormat($codop): bool|string
     {
@@ -118,11 +86,11 @@ class Visitor extends assembler3BaseVisitor
             'type' => $type,
             'line' => $this->lines,
             'format' => !$format ? '---': $format, 
-            'pc' => $this->ajustHexLength(dechex($this->pc), 4),
+            'pc' => $this->adjustHexLength(dechex($this->pc), 4),
             'label' => $label,
             'codop' => $codop,
             'mode' => !$mode ?'---' : $mode,
-            'op'=> $op1, 'op2'=> $op2, 
+            'op'=> $op1 ?? false, 'op2'=> $op2 ?? false, 
             'error' => $error,
             'temp' => $temp,
             'hex' => $hex
@@ -148,9 +116,9 @@ class Visitor extends assembler3BaseVisitor
             if($this->printErrors) echo $error;
             $this->putLineOn($error);
         }
-
+        $addr = $this->adjustHexLength(dechex($this->temp['address']), 6); 
         $this->insertInIntermediate(Line::HEADER,
-        false, $label, $start, $address, false, false, $err);
+        false, $label, $start, $addr, false, false, $err, ['op_col' => $address]);
     }
 
     public function visitInstructionOpt(InstructionOptContext $ctx)
@@ -175,9 +143,9 @@ class Visitor extends assembler3BaseVisitor
             $this->putLineOn($error);
         }
         else {
-            $pc = $this->ajustHexLength(dechex($this->pc), 4);
+            $pc = $this->adjustHexLength(dechex($this->pc), 4);
             $this->putLineOn("$pc | $label\n", 'tabSim.txt');
-            $this->tabSim[$label] = $this->pc;
+            $this->tabSim[$label] = $this->adjustHexLength(dechex($this->pc), 4);
         }
     }
 
@@ -197,9 +165,13 @@ class Visitor extends assembler3BaseVisitor
         // echo "text: {$ctx->getText()}\n";
         $this->lines++;
         $label = $ctx->ID()?->getText() ?? $ctx->NUM()?->getText();
+        $programSize = dechex($this->pc - $this->temp['address']);
+        $programSize = $this->adjustHexLength($programSize, 6);
+        $this->tabSim['PROGRAM_SIZE'] = $programSize;
+
         $this->insertInIntermediate(
             Line::END, false, false, 'END', $label, false, false, false, ['op_col' => $label]);
-        $programSize = dechex($this->pc - $this->temp['address']);
+
         $this->putLineOn("Program Size: $programSize\n", 'tabSim.txt');
         $pc = dechex($this->pc);
         $this->putLineOn("$pc: {$ctx->getText()}\n", 'intermedio.txt');
@@ -210,9 +182,11 @@ class Visitor extends assembler3BaseVisitor
         $codop = $ctx->ID(0)?->getText();
         $plus = $ctx->PLUS()?->getText();
         $mode = $ctx->AT()?->getText() ?? $ctx->HASH()?->getText();
-        $op1 = $ctx->ID(1)?->getText() ?? $ctx->NUM(0)?->getText();
+        // $op1 = $ctx->ID(1)?->getText() ?? $ctx->NUM(0)?->getText();
+        $op1 = $ctx->op1?->getText();
         $comma = $ctx->COMMA()?->getText();
-        $op2 = $ctx->ID(2)?->getText() ?? $ctx->NUM(1)?->getText();
+        // $op2 = $ctx->ID(2)?->getText() ?? $ctx->NUM(1)?->getText();
+        $op2 = $ctx->op2?->getText();
         $label = $this->temp['label'];
         $format = $this->getFormat($label);
         $error = false;
@@ -221,8 +195,10 @@ class Visitor extends assembler3BaseVisitor
             $format = $plus !== null ? '4' : $format;
             $mode = $format == '3' || $format == '4' ? 
                     Mode::getMode($mode): null;
+
             $temp['op_col'] = "$op";
-            
+            $temp['isOp2Num'] = $temp['isOp1Num'] = false;
+        
             if(isset($op1)) {
                 //dos operadores sin coma
                 $temp['op_col'] = "$op $op1";
@@ -234,7 +210,7 @@ class Visitor extends assembler3BaseVisitor
             }
 
             $this->insertInIntermediate(Line::INSTRUCTION, 
-            $format, false, $label, $op, $mode, $error, $temp);
+            $format, false, $label, $op, null, $mode, false, $temp);
             //CHECAR POR OP1 VALIDO SIN ADDR MODE
             //dado puede ser c o m cualquier op es valido excepto
             if($this->debug) echo "1-OP {$this->lines}: $label $op\n";
@@ -252,22 +228,53 @@ class Visitor extends assembler3BaseVisitor
         else {
             // Seccion en teoria libre de errores de operadores
             $format = $this->getFormat($codop);
-            $op1 = $ctx->ID(1)?->getText();
-            $op2 = null;
+            // $op1 = $ctx->ID(1)?->getText();
+            // $c1 = $ctx->NUM(0)?->getText();
+            // $op2 = $ctx->ID(2)?->getText();
+            // $c2 = $ctx->NUM(1)?->getText();
+            $isNum1 = false;
+            $isNum2 = false;
+            // if($this->lines >= 5 && $this->lines <= 8) {
+            //     echo "Operadores:\n";
+            //     var_dump($op1, $op2);
 
-            if(!$op1) {
-                $op1 = $ctx->NUM(0)?->getText();
-                $op2 = $ctx->ID(2)?->getText();
-                if(!$op2) {
-                    $op2 = $ctx->NUM(1)?->getText();
-                }
-            }
-            else {
-                $op2 = $ctx->ID(2)?->getText();
-                if(!$op2) {
-                    $op2 = $ctx->NUM(0)?->getText();
-                }
-            }
+            // }
+            if(isset($op1) && $this->isHexOrDec($op1)) $isNum1 = true;
+            if(isset($op2) && $this->isHexOrDec($op2)) $isNum2 = true;
+            // if($op1 && $op1[strlen($op1) - 1] == 'H') $isNum1 = true;
+            // if($op2 && $op2[strlen($op2) - 1] == 'H') $isNum2 = true;
+            // if(!$op1 && !$op2) {
+                
+            //     if($c1 & $c2) $isNum1 = $isNum2 = true;
+            //     if($c1) $isNum1 = true;
+            //     if($c2) $isNum1 = true;
+            //     $op1 = $c1; $op2 = $c2;
+            // }
+            // else if(!$op2) {
+            //     $op2 = $c1;
+            //     if($c1) $isNum2 = true;
+            // }
+            // else if(!$op1) {
+            //     $op1 = $c1;
+            //     if($c1) $isNum1 = true;
+            // }
+
+            // if(!$op1) {
+            //     $op1 = $ctx->NUM(0)?->getText();
+            //     if($op1 != null) $isNum1 = true;
+            //     $op2 = $ctx->ID(2)?->getText();
+            //     if(!$op2) {
+            //         $op2 = $ctx->NUM(1)?->getText();
+            //         if($op2 != null) $isNum2 = true;
+            //     }
+            // }
+            // else {
+            //     $op2 = $ctx->ID(2)?->getText();
+            //     if(!$op2) {
+            //         $op2 = $ctx->NUM(0)?->getText();
+            //         if($op2 != null) $isNum2 = true;
+            //     }
+            // }
 
             $isNotValid = isset($op1) || isset($mode) || isset($op2) || isset($plus);
             $error = false;
@@ -282,6 +289,8 @@ class Visitor extends assembler3BaseVisitor
             }
             $format = $plus !== null ? '4' : $format;
 
+            //modo en este punto solo toma en cuenta indirecto y inmediato.
+            //en el modo simple es valido tener un segundo operando
             $isNotValid = (isset($op2) && $op2 !== 'X') || (isset($mode) && isset($op2))
             || (isset($op1) && $codop == 'RSUB');
             if($format == '3' && $isNotValid) {
@@ -290,6 +299,8 @@ class Visitor extends assembler3BaseVisitor
             }
             if($this->debug) echo "{$this->lines}: $plus$codop $mode-$op1-$comma-$op2\n";
             $temp['op_col'] = "$mode$op1$comma $op2";
+            $temp['isOp1Num'] = $isNum1;
+            $temp['isOp2Num'] = $isNum2;
             $mode = $format == '3' || $format == '4' ? 
             Mode::getMode($mode): '---';
             if($error) {
@@ -336,7 +347,7 @@ class Visitor extends assembler3BaseVisitor
         $this->insertInIntermediate(Line::DIRECTIVE,
         false, $label, 'BYTE',$content, $contentx,
         false,false, $temp);
-        echo "BYTE: $c\n";
+        // echo "BYTE: $c\n";
         $this->pc += $c;
         return true;
     }
@@ -350,7 +361,7 @@ class Visitor extends assembler3BaseVisitor
     private function isLabelValid($label): bool
     {
         //de momento checa por labels con nombre de directivas
-        if(isset($label) && isset($this->directives[$label])) {
+        if($label != null && isset($this->directives[$label])) {
             return false;
         }
         $this->insertInSimTab($label);
@@ -369,7 +380,7 @@ class Visitor extends assembler3BaseVisitor
         }
         $this->insertInIntermediate(Line::DIRECTIVE,
         false, $label, 'WORD', $ctx->NUM()?->getText(),
-        false,false,false, ['op_col' => $ctx->NUM()?->getText()]);
+        false,false,false, ['op_col' => $ctx->NUM()?->getText(), 'bytes' => 3]);
         $this->pc += 3;
         return true;
     }
@@ -430,19 +441,7 @@ class Visitor extends assembler3BaseVisitor
         return true;
     }
 
-    protected function getIntFrom(string $num): int
-    {        
-        $aux = $this->canGetHex($num) 
-        ? hexdec($num) 
-        : $num;
-        echo "{$this->lines}: $num - to dec -> $aux\n";
-        return intval($aux);
-    }
 
-    protected function canGetHex(string $num): string|bool
-    {
-        return strpos($num, 'H') !== false;
-    }
 
 
     public function visitOp1Missing(Op1MissingContext $context)
@@ -468,6 +467,7 @@ class Visitor extends assembler3BaseVisitor
     public function visitByteError(ByteErrorContext $ctx)
     {
         $this->putLineOn("@Error de sintaxis en linea {$this->lines}\n"); 
+        if($this->debug) echo "in Byte error\n";
         $label = $this->temp['label'];
         $const = $ctx->ERRCONS()?->getText();
         $consx = $ctx->ERRCONSX()?->getText();
