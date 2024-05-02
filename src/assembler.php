@@ -1,27 +1,11 @@
 <?php
-
-require __DIR__."/vendor/autoload.php";
+namespace Assembler;
 
 use Antlr\Antlr4\Runtime\CommonTokenStream;
 use Antlr\Antlr4\Runtime\Error\Exceptions\RecognitionException;
 use Antlr\Antlr4\Runtime\Error\Listeners\BaseErrorListener;
-use Antlr\Antlr4\Runtime\Error\Listeners\DiagnosticErrorListener;
 use Antlr\Antlr4\Runtime\InputStream;
-use Antlr\Antlr4\Runtime\Parser;
-use Antlr\Antlr4\Runtime\ParserRuleContext;
 use Antlr\Antlr4\Runtime\Recognizer;
-use Antlr\Antlr4\Runtime\Tree\ErrorNode;
-use Antlr\Antlr4\Runtime\Tree\ParseTree;
-use Antlr\Antlr4\Runtime\Tree\ParseTreeListener;
-use Antlr\Antlr4\Runtime\Tree\ParseTreeVisitor;
-use Antlr\Antlr4\Runtime\Tree\ParseTreeWalker;
-use Antlr\Antlr4\Runtime\Tree\TerminalNode;
-
-use Assembler\assembler3Lexer as assemblerLexer;
-use Assembler\assembler3Parser as assemblerParser;
-use Assembler\Visitor;
-use Assembler\Mode;
-use Assembler\STEP2;
 
 class AssemblerErrorListener extends BaseErrorListener {
     public function syntaxError(Recognizer $recognizer, ?object $offendingSymbol, int $line, int $charPositionInLine, string $msg, ?RecognitionException $exception): void
@@ -31,15 +15,10 @@ class AssemblerErrorListener extends BaseErrorListener {
         $names = $recognizer->getRuleNames();
         echo "@Error en linea $line:$charPositionInLine: $msg\n";   
     }
-
 }
 
 class Assembler {
 
-    public function runWithTrustedPath($path): void
-    {
-        $this->evaluate($path);
-    }
     public function run($argv): void
     {
         if(!isset($argv[1])) {
@@ -55,17 +34,24 @@ class Assembler {
             return;
         }
 
-        echo 'lines: ' . $this->evaluate($path);
+        [$before_step2, $intermediate, $tabsim] = $this->evaluate($path);
+
+        // $printable = array_slice($visitor->getIntermediate(), 0, 20);
+        $printables = [ '1', '2','30', '33', '37'];
+        print_r($this->printOnly($before_step2));
+        $this->imprimirTabla($before_step2);
+        $this->imprimirTablaObjcode($intermediate);
+        print_r($tabsim);
     }
 
-    protected function evaluate($path)
+    public function evaluate($path) : array
     {
         $stream = InputStream::fromPath($path);
-        $lexer = new assemblerLexer($stream);
+        $lexer = new assembler3Lexer($stream);
         $lexer->removeErrorListeners();
         $lexer->addErrorListener(new AssemblerErrorListener);
         $tokens = new CommonTokenStream($lexer);
-        $parser = new assemblerParser($tokens);
+        $parser = new assembler3Parser($tokens);
         $parser->removeErrorListeners();
         $parser->addErrorListener(new AssemblerErrorListener);
 
@@ -74,18 +60,18 @@ class Assembler {
         $visitor = new Visitor();
         try{
             $visitor->visit($tree);
-        } catch(Exception $e) {
+        } catch(\Exception $e) {
             echo "Excepcion: {$e->getMessage()}\n";
         }
-        // $printable = array_slice($visitor->getIntermediate(), 0, 20);
-        $printables = [ '1', '2','30', '33', '37'];
-        print_r($this->printOnly($visitor->getIntermediate()));
-        $this->imprimirTabla($visitor->getIntermediate());
-        $step2 = new STEP2($visitor->tabSim, $visitor->getIntermediate());
+        $intemediate = $visitor->getIntermediate();
+        $step2 = new STEP2($visitor->tabSim, $intemediate);
         $step2->assembly();
-        $this->imprimirTablaObjcode($step2->intermediate);
-        print_r($visitor->tabSim);
-        return $visitor->lines;
+
+        return [
+            $intemediate,
+            $step2->intermediate,
+            $visitor->tabSim
+        ];
     }
 
     public function printOnly($source, $choosen = null): array
@@ -98,7 +84,7 @@ class Assembler {
         return $resp;
     }
 
-    function imprimirTabla($datos)
+    function imprimirTabla($datos, $path = 'tabla.txt')
     {
         $out = "---------------------------------------------------------------------------------------------\n";
         $out.= "|   NUM      |   FORMATO  |     PC     |     ETQ     |     INS    |    OPER    |     MODO   |\n";
@@ -118,10 +104,10 @@ class Assembler {
         // Línea de cierre
         $out.= "---------------------------------------------------------------------------------------------\n";
             // Guarda en un archivo
-        file_put_contents('tabla.txt', $out);
+        file_put_contents($path, $out);
     }
 
-    function imprimirTablaObjcode($datos)
+    function imprimirTablaObjcode($datos, $path = 'tablaobjCode.txt')
     {
         $out = "------------------------------------------------------------------------------------------------------------\n";
         $out.= "|   NUM      |   FORMATO  |     PC     |     ETQ     |     INS    |    OPER    |     MODO   |    Objcode    |\n";
@@ -140,8 +126,6 @@ class Assembler {
         // Línea de cierre
         $out.= "------------------------------------------------------------------------------------------------------------\n";
             // Guarda en un archivo
-        file_put_contents('tablaobjCode.txt', $out);
+        file_put_contents($path, $out);
     }
 }
-
-(new Assembler)->run($argv);

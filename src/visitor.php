@@ -228,53 +228,12 @@ class Visitor extends assembler3BaseVisitor
         else {
             // Seccion en teoria libre de errores de operadores
             $format = $this->getFormat($codop);
-            // $op1 = $ctx->ID(1)?->getText();
-            // $c1 = $ctx->NUM(0)?->getText();
-            // $op2 = $ctx->ID(2)?->getText();
-            // $c2 = $ctx->NUM(1)?->getText();
+
             $isNum1 = false;
             $isNum2 = false;
-            // if($this->lines >= 5 && $this->lines <= 8) {
-            //     echo "Operadores:\n";
-            //     var_dump($op1, $op2);
-
-            // }
+            
             if(isset($op1) && $this->isHexOrDec($op1)) $isNum1 = true;
             if(isset($op2) && $this->isHexOrDec($op2)) $isNum2 = true;
-            // if($op1 && $op1[strlen($op1) - 1] == 'H') $isNum1 = true;
-            // if($op2 && $op2[strlen($op2) - 1] == 'H') $isNum2 = true;
-            // if(!$op1 && !$op2) {
-                
-            //     if($c1 & $c2) $isNum1 = $isNum2 = true;
-            //     if($c1) $isNum1 = true;
-            //     if($c2) $isNum1 = true;
-            //     $op1 = $c1; $op2 = $c2;
-            // }
-            // else if(!$op2) {
-            //     $op2 = $c1;
-            //     if($c1) $isNum2 = true;
-            // }
-            // else if(!$op1) {
-            //     $op1 = $c1;
-            //     if($c1) $isNum1 = true;
-            // }
-
-            // if(!$op1) {
-            //     $op1 = $ctx->NUM(0)?->getText();
-            //     if($op1 != null) $isNum1 = true;
-            //     $op2 = $ctx->ID(2)?->getText();
-            //     if(!$op2) {
-            //         $op2 = $ctx->NUM(1)?->getText();
-            //         if($op2 != null) $isNum2 = true;
-            //     }
-            // }
-            // else {
-            //     $op2 = $ctx->ID(2)?->getText();
-            //     if(!$op2) {
-            //         $op2 = $ctx->NUM(0)?->getText();
-            //         if($op2 != null) $isNum2 = true;
-            //     }
-            // }
 
             $isNotValid = isset($op1) || isset($mode) || isset($op2) || isset($plus);
             $error = false;

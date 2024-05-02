@@ -12,6 +12,7 @@ enum ASMError : string
     case notExistingAddrMode = "@No existe combinacion MD";
     case notOpOrBaseRelative = "@No relativo al PC/B";
     case symbolNotFound = "@Simbolo no encontrado para END";
+    
 };
 
 enum Line : int

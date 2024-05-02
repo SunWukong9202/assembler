@@ -37,7 +37,7 @@ class STEP2
     private $allowSaveReg = false;
     private function handleRegistersGeneration($line, $objCode): void
     {
-        $ws = '_';
+        $ws = ' ';
         $pc = $this->adjustHexLength($line['pc'], 6);
         $isHeader = $line['type'] == Line::HEADER;
         $isInstruction = $line['type'] == Line::INSTRUCTION;
