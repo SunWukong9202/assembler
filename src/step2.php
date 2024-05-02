@@ -122,12 +122,11 @@ class STEP2
 
     public function getRegisters()
     {
-        return file_get_contents('default.txt');
+        return $this->textRegisters;
     }
 
     private function generateObjCode($programName)
     {
-        $programName = !$this->defaultSettled ? $programName : 'default';
         $this->clearFile($programName.'.txt');
 
         foreach($this->textRegisters as $reg) {
