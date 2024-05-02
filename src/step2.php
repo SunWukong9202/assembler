@@ -20,8 +20,9 @@ class STEP2
         'PC' => '8',
         'SW' => '9',
     ];
-    private $textRegisters = [];
+    public $textRegisters = [];
     private $memAllocators = ['RESB', 'RESW'];
+    private $defaultSettled = false;
     private static $MAX_R_LEN = 30; //30 bytes
     public function __construct(
         private $tabSim,
@@ -119,9 +120,16 @@ class STEP2
         }
     }
 
+    public function getRegisters()
+    {
+        return file_get_contents('default.txt');
+    }
+
     private function generateObjCode($programName)
     {
+        $programName = !$this->defaultSettled ? $programName : 'default';
         $this->clearFile($programName.'.txt');
+
         foreach($this->textRegisters as $reg) {
             $line = join('', $reg);
             $this->putLineOn($line."\n", $programName.'.txt');

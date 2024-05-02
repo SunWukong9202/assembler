@@ -53,6 +53,11 @@ class Visitor extends assembler3BaseVisitor
         return $this->intermediate;
     }
 
+    public function getErrors() {
+        $errores = file_get_contents('errores.err');
+        return $errores;
+    }
+
     protected function getFormat($codop): bool|string
     {
         return match(true) {

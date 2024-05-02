@@ -29,12 +29,10 @@ trait FileHelper {
             echo "Ocurrio un error\n";
         }
     }
-
 }
 
 trait HexHelpers 
 {
-
     protected function getIntFrom(string $num): int
     {        
         $aux = $this->canGetHex($num) 

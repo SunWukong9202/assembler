@@ -64,13 +64,16 @@ class Assembler {
             echo "Excepcion: {$e->getMessage()}\n";
         }
         $intemediate = $visitor->getIntermediate();
+        $errors = $visitor->getErrors();
         $step2 = new STEP2($visitor->tabSim, $intemediate);
         $step2->assembly();
-
+        $registers = $step2->getRegisters();
         return [
             $intemediate,
             $step2->intermediate,
-            $visitor->tabSim
+            $visitor->tabSim,
+            $errors,
+            $registers
         ];
     }
 
