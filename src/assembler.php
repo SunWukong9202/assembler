@@ -44,7 +44,7 @@ class Assembler {
         print_r($tabsim);
     }
 
-    public function evaluate($path) : array
+    public function evaluate($path, $extern = false) : array
     {
         $stream = InputStream::fromPath($path);
         $lexer = new assembler3Lexer($stream);
@@ -63,10 +63,15 @@ class Assembler {
         } catch(\Exception $e) {
             echo "Excepcion: {$e->getMessage()}\n";
         }
+
         $intemediate = $visitor->getIntermediate();
         $errors = $visitor->getErrors();
         $step2 = new STEP2($visitor->tabSim, $intemediate);
+
         $step2->assembly();
+        if($extern) {
+            $step2->defaultSettled = true;
+        }
         $registers = $step2->getRegisters();
         return [
             $intemediate,

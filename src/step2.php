@@ -22,7 +22,7 @@ class STEP2
     ];
     public $textRegisters = [];
     private $memAllocators = ['RESB', 'RESW'];
-    private $defaultSettled = false;
+    public $defaultSettled = false;
     private static $MAX_R_LEN = 30; //30 bytes
     public function __construct(
         private $tabSim,
