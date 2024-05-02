@@ -74,7 +74,7 @@ class STEP2
             // echo "accum-assign: $accum\n";
             $inc = 0;
             if($isValidDirective) {
-                $inc = intval($line['temp']['bytes']);
+                $inc = intval($line['temp']['bytes'] ?? 0);
             } elseif(isset($line['format'])) {
                 $inc = intval($line['format']);
             }
