@@ -11,9 +11,9 @@ trait FileHelper {
         if ($file) {
             fwrite($file, "");  // Escribe una cadena vacía para limpiar el archivo
             fclose($file);
-            echo "Archivo limpiado.\n";
+            // echo "Archivo limpiado.\n";
         } else {
-            echo "Ocurrió un error al intentar limpiar el archivo\n";
+            // echo "Ocurrió un error al intentar limpiar el archivo\n";
         }
     }
 
@@ -26,7 +26,7 @@ trait FileHelper {
             fclose($file);
         }
         else {
-            echo "Ocurrio un error\n";
+            // echo "Ocurrio un error\n";
         }
     }
 }
