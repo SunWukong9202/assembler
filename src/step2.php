@@ -2,7 +2,9 @@
 
 namespace Assembler;
 
-use Assembler\Mode;
+use Assembler\Enums\ASMError;
+use Assembler\Enums\Line;
+use Assembler\Enums\Mode;
 
 class STEP2
 {

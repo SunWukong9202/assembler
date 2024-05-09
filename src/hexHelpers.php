@@ -2,6 +2,8 @@
 
 namespace Assembler;
 
+use Assembler\Enums\NUM;
+
 trait FileHelper {
 
     public function clearFile(string $file): void

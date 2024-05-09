@@ -1,33 +1,6 @@
 <?php
-namespace Assembler;
 
-enum ASMError : string
-{
-    case sintax = "@Error de sintaxis";
-    case labelDuplicated = "@Simbolo duplicado";
-    case notExistingOpCode = "@Instruccion no existe";
-    //step 2
-    case labelNotFound = "@Simbolo no encontrado en TABSIM";
-    case opOutOfRange = "@Operando fuera de rango";
-    case notExistingAddrMode = "@No existe combinacion MD";
-    case notOpOrBaseRelative = "@No relativo al PC/B";
-    case symbolNotFound = "@Simbolo no encontrado para END";
-    
-};
-
-enum Line : int
-{
-    case INSTRUCTION = 1;
-    case DIRECTIVE = 2;
-    case HEADER = 3;
-    case END = 4;
-}
-
-enum NUM : int
-{
-    case HEX = 0;
-    case INT = 1;
-}
+namespace Assembler\Enums;
 
 enum Mode: string
 {   //por defecto directos solo si $c existe

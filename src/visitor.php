@@ -20,7 +20,9 @@ use Assembler\Context\Op2MissingContext;
 use Assembler\Context\ResbContext;
 use Assembler\Context\ReswContext;
 use Assembler\Context\WordContext;
-require_once(__DIR__."/errores.php");
+use Assembler\Enums\ASMError;
+use Assembler\Enums\Line;
+use Assembler\Enums\Mode;
 
 class Visitor extends assembler3BaseVisitor
 {   
